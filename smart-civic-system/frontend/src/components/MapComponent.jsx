@@ -50,6 +50,14 @@ export default function MapComponent({
   height = '450px',
   radiusKm = null,
 }) {
+  const maxDensity = heatmapData.length > 0 ? Math.max(...heatmapData.map(c => c.count)) : 1;
+
+  const getHeatmapColor = (count) => {
+    if (count > (2 * maxDensity / 3)) return '#ef4444'; // Red for most dense
+    if (count > (maxDensity / 3)) return '#eab308'; // Yellow for medium dense
+    return '#22c55e'; // Green for least dense
+  };
+
   return (
     <div style={{ height, borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(124,58,237,0.2)' }}>
       <MapContainer center={center} zoom={zoom} style={{ height: '100%', width: '100%' }}>
@@ -106,10 +114,10 @@ export default function MapComponent({
           <CircleMarker
             key={i}
             center={[cell.lat, cell.lng]}
-            radius={Math.min(10 + cell.count * 5, 40)}
+            radius={Math.min(25 + cell.count * 8, 60)}
             pathOptions={{
               stroke: false,
-              fillColor: cell.count >= 5 ? '#ef4444' : cell.count >= 2 ? '#f97316' : '#8b5cf6',
+              fillColor: getHeatmapColor(cell.count),
               fillOpacity: 0.4 + Math.min(cell.count * 0.1, 0.5),
             }}
           >

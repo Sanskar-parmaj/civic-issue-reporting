@@ -18,6 +18,7 @@ export default function IssueDetail() {
   const [loading, setLoading] = useState(true);
   const [newStatus, setNewStatus] = useState('');
   const [proofImage, setProofImage] = useState(null);
+  const [proofDescription, setProofDescription] = useState('');
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
 
@@ -50,15 +51,19 @@ export default function IssueDetail() {
     } finally { setVoting(false); }
   };
 
-  const handleStatusUpdate = async (e) => {
-    e.preventDefault();
+  const handleStatusUpdate = async (statusToSet, e) => {
+    if (e) e.preventDefault();
     setUpdating(true);
     const fd = new FormData();
-    fd.append('status', newStatus);
-    if (proofImage) fd.append('proof_image', proofImage);
+    fd.append('status', statusToSet);
+    if (statusToSet === 'resolved') {
+      if (proofImage) fd.append('proof_image', proofImage);
+      if (proofDescription) fd.append('proof_description', proofDescription);
+    }
     try {
       const res = await api.patch(`/issues/${id}/status`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setIssue(res.data);
+      setHistory(res.data.history || history);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update');
     } finally { setUpdating(false); }
@@ -117,12 +122,19 @@ export default function IssueDetail() {
             </div>
           </motion.div>
 
-          {/* Resolution proof image */}
-          {issue.proof_image && (
+          {/* Resolution proof image and description */}
+          {(issue.proof_image || issue.proof_description) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-5">
               <h3 className="font-semibold text-emerald-400 mb-3">✅ Resolution Proof</h3>
-              <img src={`/uploads/${issue.proof_image}`} alt="Resolution proof"
-                className="w-full rounded-xl object-cover max-h-60" />
+              {issue.proof_image && (
+                <img src={`/uploads/${issue.proof_image}`} alt="Resolution proof"
+                  className="w-full rounded-xl object-cover max-h-60 mb-4" />
+              )}
+              {issue.proof_description && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-lg">
+                  <p className="text-sm text-emerald-100 whitespace-pre-wrap">{issue.proof_description}</p>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -135,23 +147,54 @@ export default function IssueDetail() {
           {isAdmin() && (
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-5">
               <h3 className="font-semibold text-violet-300 mb-4">⚙️ Admin Controls</h3>
-              <form onSubmit={handleStatusUpdate} className="space-y-3">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Update Status</label>
-                  <select value={newStatus} onChange={e => setNewStatus(e.target.value)} className="form-input text-sm">
-                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                {newStatus === 'resolved' && (
+              <div className="space-y-4">
+                {issue.status === 'reported' && (
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Proof Image</label>
-                    <input type="file" accept="image/*" onChange={e => setProofImage(e.target.files[0])} className="form-input text-sm cursor-pointer" />
+                    <p className="text-xs text-slate-400 mb-3">Acknowledge this issue to let citizens know it's being worked on.</p>
+                    <button 
+                      onClick={() => handleStatusUpdate('in-progress')} 
+                      disabled={updating} 
+                      className="btn-primary w-full text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {updating ? 'Updating...' : 'Mark as In-Progress'}
+                    </button>
                   </div>
                 )}
-                <button type="submit" disabled={updating} className="btn-primary w-full text-sm disabled:opacity-50">
-                  {updating ? 'Updating...' : 'Update Status'}
-                </button>
-              </form>
+                
+                {issue.status === 'in-progress' && (
+                  <form onSubmit={(e) => handleStatusUpdate('resolved', e)} className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Proof Image (Required to Resolve)</label>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        required
+                        onChange={e => setProofImage(e.target.files[0])} 
+                        className="form-input text-sm cursor-pointer file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-violet-600 file:text-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Resolution Description (Optional)</label>
+                      <textarea
+                        rows="3"
+                        value={proofDescription}
+                        onChange={e => setProofDescription(e.target.value)}
+                        className="form-input w-full text-sm"
+                        placeholder="Describe how the issue was resolved..."
+                      />
+                    </div>
+                    <button type="submit" disabled={!proofImage || updating} className="btn-primary w-full text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
+                      {updating ? 'Uploading...' : 'Upload Proof & Resolve'}
+                    </button>
+                  </form>
+                )}
+
+                {issue.status === 'resolved' && (
+                  <div className="text-emerald-400 text-sm font-medium text-center py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                    ✅ This issue has been fully resolved.
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
 

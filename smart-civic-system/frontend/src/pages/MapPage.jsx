@@ -23,11 +23,12 @@ export default function MapPage() {
 
   useEffect(() => {
     if (showHeatmap) {
-      api.get('/issues/heatmap').then(res => setHeatmapData(res.data)).catch(() => {});
+      const params = radius && searchCenter ? { lat: searchCenter.lat, lng: searchCenter.lng, radius } : {};
+      api.get('/issues/heatmap', { params }).then(res => setHeatmapData(res.data)).catch(() => {});
     } else {
       setHeatmapData([]);
     }
-  }, [showHeatmap]);
+  }, [showHeatmap, radius, searchCenter]);
 
   const handleRadiusSearch = async (r, center = searchCenter) => {
     setRadius(r);
