@@ -28,6 +28,7 @@ CREATE TABLE Issues (
     status      VARCHAR(20) NOT NULL DEFAULT 'reported' CHECK (status IN ('reported', 'in-progress', 'resolved')),
     image       VARCHAR(255),
     proof_image VARCHAR(255),
+    proof_description TEXT,
     latitude    DECIMAL(10, 7) NOT NULL,
     longitude   DECIMAL(10, 7) NOT NULL,
     votes       INTEGER DEFAULT 0,

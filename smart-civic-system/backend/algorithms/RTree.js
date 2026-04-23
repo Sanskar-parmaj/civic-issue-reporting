@@ -109,34 +109,41 @@ class RTree {
     }
   }
 
-  /**
-   * Generate a heatmap grid.
-   * Divides the world into `gridSize x gridSize` cells and counts issues per cell.
-   * Returns array of { lat, lng, count } for cells with count > 0.
-   */
-  generateHeatmap(issues, gridSize = 20) {
+  generateHeatmap(issues) {
     if (issues.length === 0) return [];
-    const lats = issues.map(i => parseFloat(i.latitude));
-    const lngs = issues.map(i => parseFloat(i.longitude));
-    const minLat = Math.min(...lats) - 0.01;
-    const maxLat = Math.max(...lats) + 0.01;
-    const minLng = Math.min(...lngs) - 0.01;
-    const maxLng = Math.max(...lngs) + 0.01;
-    const latStep = (maxLat - minLat) / gridSize;
-    const lngStep = (maxLng - minLng) / gridSize;
+    
+    // 1km radius roughly equals 0.009 degrees
+    const radius = 0.009; 
     const heatmap = [];
-    for (let r = 0; r < gridSize; r++) {
-      for (let c = 0; c < gridSize; c++) {
-        const cMinLat = minLat + r * latStep;
-        const cMaxLat = cMinLat + latStep;
-        const cMinLng = minLng + c * lngStep;
-        const cMaxLng = cMinLng + lngStep;
-        const count = this.query(cMinLat, cMinLng, cMaxLat, cMaxLng).length;
-        if (count > 0) {
-          heatmap.push({ lat: (cMinLat + cMaxLat) / 2, lng: (cMinLng + cMaxLng) / 2, count });
-        }
+    const processed = new Set();
+    
+    for (const issue of issues) {
+      if (processed.has(issue.issue_id)) continue;
+      
+      const lat = parseFloat(issue.latitude);
+      const lng = parseFloat(issue.longitude);
+      
+      // Use RTree to find all issues within 1km radius
+      const neighbors = this.query(lat - radius, lng - radius, lat + radius, lng + radius);
+      
+      // Calculate exact centroid for the heatmap circle to perfectly align with issues
+      let sumLat = 0, sumLng = 0;
+      for (const neighbor of neighbors) {
+        sumLat += parseFloat(neighbor.latitude);
+        sumLng += parseFloat(neighbor.longitude);
+        processed.add(neighbor.issue_id);
+      }
+      
+      const count = neighbors.length;
+      if (count > 0) {
+        heatmap.push({ 
+          lat: sumLat / count, 
+          lng: sumLng / count, 
+          count 
+        });
       }
     }
+    
     return heatmap;
   }
 

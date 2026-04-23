@@ -121,7 +121,7 @@ const getIssueById = async (req, res) => {
 // Update issue status (admin only)
 const updateIssueStatus = async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, proof_description } = req.body;
   const validStatuses = ['reported', 'in-progress', 'resolved'];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
@@ -130,8 +130,8 @@ const updateIssueStatus = async (req, res) => {
   try {
     let query, params;
     if (proof_image) {
-      query = 'UPDATE Issues SET status=$1, proof_image=$2 WHERE issue_id=$3 RETURNING *';
-      params = [status, proof_image, id];
+      query = 'UPDATE Issues SET status=$1, proof_image=$2, proof_description=$3 WHERE issue_id=$4 RETURNING *';
+      params = [status, proof_image, proof_description || null, id];
     } else {
       query = 'UPDATE Issues SET status=$1 WHERE issue_id=$2 RETURNING *';
       params = [status, id];
@@ -184,10 +184,22 @@ const searchByRadius = async (req, res) => {
 // Get heatmap data using RTree
 const getHeatmapData = async (req, res) => {
   try {
+    const { lat, lng, radius } = req.query;
     const { RTree } = require('../algorithms/RTree');
     const result = await pool.query('SELECT latitude, longitude, issue_id FROM Issues');
-    const tree = RTree.build(result.rows);
-    const heatmap = tree.generateHeatmap(result.rows, 20);
+    
+    let targetIssues = result.rows;
+
+    // Filter issues if radius search is active
+    if (lat && lng && radius) {
+      const { QuadTree } = require('../algorithms/QuadTree');
+      const qt = QuadTree.build(targetIssues);
+      const nearby = qt.queryRadius(parseFloat(lat), parseFloat(lng), parseFloat(radius));
+      targetIssues = nearby.map(p => p.data);
+    }
+
+    const tree = RTree.build(targetIssues);
+    const heatmap = tree.generateHeatmap(targetIssues);
     res.json(heatmap);
   } catch (err) {
     res.status(500).json({ error: 'Server error generating heatmap' });
