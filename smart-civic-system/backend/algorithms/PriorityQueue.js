@@ -14,7 +14,11 @@ class PriorityQueue {
   }
 
   _priority(item) {
-    return this._severityValue(item.severity) + (item.votes || 0);
+    let score = this._severityValue(item.severity) + (item.votes || 0);
+    if (item.escalated) {
+      score += 10;
+    }
+    return score;
   }
 
   _parent(i) { return Math.floor((i - 1) / 2); }

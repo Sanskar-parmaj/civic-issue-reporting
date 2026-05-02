@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import IssueCard from '../components/IssueCard';
+import StatusPieChart from '../components/StatusPieChart';
 import api from '../services/api';
 
 export default function UserDashboard() {
@@ -16,7 +17,7 @@ export default function UserDashboard() {
       try {
         const [issuesRes, notifRes] = await Promise.all([
           api.get(`/issues/user/${user.user_id}`),
-          api.get('/issues/notifications').catch(() => ({ data: [] }))
+          api.get(`/notifications/${user.user_id}`).catch(() => ({ data: [] }))
         ]);
         const userIssues = issuesRes.data;
         setMyIssues(userIssues);
@@ -98,6 +99,9 @@ export default function UserDashboard() {
 
           {/* Sidebar: Timeline + Notifications */}
           <div className="space-y-6">
+            
+            <StatusPieChart stats={{ reported: stats.reported, 'in-progress': stats.inProgress, resolved: stats.resolved }} />
+
             {/* Notifications Queue */}
             {notifications.length > 0 && (
               <div className="glass-card p-5">

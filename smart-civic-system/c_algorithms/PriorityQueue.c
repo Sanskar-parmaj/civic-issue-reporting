@@ -10,7 +10,8 @@ typedef struct {
     char title[100];
     int severity; // 1-4
     int votes;
-    int priority_score; // severity + votes
+    int escalated; // 0 or 1
+    int priority_score; // severity + votes + (escalated ? 10 : 0)
 } Issue;
 
 // Max-Heap Priority Queue definition
@@ -59,7 +60,7 @@ void heapifyDown(PriorityQueue* pq, int i) {
 }
 
 // Insert an issue into PQ
-void insert(PriorityQueue* pq, int id, const char* title, int sev, int votes) {
+void insert(PriorityQueue* pq, int id, const char* title, int sev, int votes, int escalated) {
     if (pq->size == MAX_CAPACITY) {
         printf("Priority Queue is full.\n");
         return;
@@ -70,7 +71,8 @@ void insert(PriorityQueue* pq, int id, const char* title, int sev, int votes) {
     strcpy(newIssue.title, title);
     newIssue.severity = sev;
     newIssue.votes = votes;
-    newIssue.priority_score = sev + votes;
+    newIssue.escalated = escalated;
+    newIssue.priority_score = sev + votes + (escalated ? 10 : 0);
 
     // Insert at end
     pq->array[pq->size] = newIssue;
@@ -103,9 +105,9 @@ int main() {
     PriorityQueue pq;
     initPQ(&pq);
 
-    insert(&pq, 1, "Pothole on Main St", 2, 5); // Score: 7
-    insert(&pq, 2, "Burst Water Pipe", 4, 10);  // Score: 14
-    insert(&pq, 3, "Broken Streetlight", 1, 2); // Score: 3
+    insert(&pq, 1, "Pothole on Main St", 2, 5, 0); // Score: 7
+    insert(&pq, 2, "Burst Water Pipe", 4, 10, 0);  // Score: 14
+    insert(&pq, 3, "Broken Streetlight", 1, 2, 1); // Score: 13 (Escalated!)
 
     printf("Processing Highest Priority Issues First:\n");
     while (pq.size > 0) {

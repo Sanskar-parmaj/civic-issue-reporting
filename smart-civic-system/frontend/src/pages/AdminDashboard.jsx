@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import api from '../services/api';
+import StatusPieChart from '../components/StatusPieChart';
 
 export default function AdminDashboard() {
   const [issues, setIssues] = useState([]);
@@ -115,44 +116,29 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Top Priority Issues — PriorityQueue */}
-          <div className="lg:col-span-2 glass-card p-5">
-            <h3 className="font-semibold text-white mb-1">⚡ Top Priority Issues</h3>
-            <p className="text-xs text-violet-400 mb-3">PriorityQueue max-heap — severity + votes</p>
+          {/* Escalated Issues */}
+          <div className="glass-card p-5">
+            <h3 className="font-semibold text-red-400 mb-1">⚠ Escalated Issues</h3>
+            <p className="text-xs text-red-400/70 mb-3">Missed resolution deadlines</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {topPriority.slice(0, 8).map((issue, i) => (
-                <div key={issue.issue_id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                  <span className="text-lg font-bold text-violet-300 w-6 text-center shrink-0">#{i+1}</span>
-                  <div className="flex-1 min-w-0">
-                    <Link to={`/issues/${issue.issue_id}`} className="text-sm font-medium text-white hover:text-violet-300 truncate block">
-                      {issue.title}
-                    </Link>
-                    <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                      <span className={`badge-${issue.severity} px-1.5 py-0.5 rounded`}>{issue.severity}</span>
-                      <span>👍 {issue.votes}</span>
-                      <span>⚡ {getPriority(issue)}</span>
-                    </div>
-                  </div>
-                  <div style={{ width: 'auto', minWidth: '110px' }} className="text-right">
-                    {issue.status === 'reported' && (
-                      <button onClick={() => handleStatusSelect(issue, 'in-progress')} className="px-3 py-1 rounded bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/40 text-xs font-medium transition-colors">
-                        Mark In-Progress
-                      </button>
-                    )}
-                    {issue.status === 'in-progress' && (
-                      <button onClick={() => handleStatusSelect(issue, 'resolved')} className="px-3 py-1 rounded bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/40 text-xs font-medium transition-colors">
-                        Resolve Issue
-                      </button>
-                    )}
-                    {issue.status === 'resolved' && (
-                      <span className="text-emerald-500 text-xs font-medium">✅ Resolved</span>
-                    )}
+              {issues.filter(i => i.escalated).map((issue) => (
+                <div key={`esc-${issue.issue_id}`} className="flex flex-col gap-1 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                  <Link to={`/issues/${issue.issue_id}`} className="text-sm font-medium text-white hover:text-red-300 truncate">
+                    #{issue.issue_id} - {issue.title}
+                  </Link>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-400">By {issue.reporter_name}</span>
+                    <span className="text-red-400 font-bold">Severity: {issue.severity}</span>
                   </div>
                 </div>
               ))}
-              {topPriority.length === 0 && <p className="text-slate-600 text-sm py-4 text-center">No issues yet</p>}
+              {issues.filter(i => i.escalated).length === 0 && <p className="text-slate-600 text-sm py-4 text-center">No escalated issues</p>}
             </div>
+          </div>
+
+          {/* Status Pie Chart */}
+          <div className="lg:col-span-1">
+            <StatusPieChart stats={stats.status} />
           </div>
         </div>
 
@@ -185,6 +171,11 @@ export default function AdminDashboard() {
                     <td className="py-2 px-3 text-violet-400 font-semibold">⚡ {getPriority(issue)}</td>
                     <td className="py-2 px-3">
                       <span className={`status-${issue.status} px-2 py-0.5 rounded-full text-xs`}>{issue.status}</span>
+                      {issue.escalated && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-bold bg-red-600/30 text-red-400 border border-red-500/30">
+                          ⚠ Escalated
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 px-3">
                       <div style={{ width: 'auto', minWidth: '100px' }}>

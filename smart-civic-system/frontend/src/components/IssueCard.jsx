@@ -52,6 +52,11 @@ export default function IssueCard({ issue, index = 0 }) {
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stat.class}`}>
             {stat.label}
           </span>
+          {issue.escalated && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-red-600/30 text-red-400 border border-red-500/30">
+              ⚠ Escalated
+            </span>
+          )}
           <span className="text-xs text-slate-500 ml-auto">{issue.category}</span>
         </div>
 

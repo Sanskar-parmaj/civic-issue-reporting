@@ -17,7 +17,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Seed default admin
+// Seed default admin and run migrations
 const pool = require('./config/db');
 const bcrypt = require('bcryptjs');
 (async () => {
@@ -31,10 +31,35 @@ const bcrypt = require('bcryptjs');
       );
       console.log('✅ Default Admin seeded. Email: admin@civicsmart.com / Password: admin123');
     }
+
+    // Auto-migrate tables
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        message TEXT,
+        issue_id INT,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      ALTER TABLE Issues ADD COLUMN IF NOT EXISTS escalated BOOLEAN DEFAULT false;
+    `);
+
+    await pool.query(`
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS issue_id INT;
+    `);
+
   } catch (err) {
-    console.error('Error seeding admin:', err);
+    console.error('Error during init:', err);
   }
 })();
+
+// Start Escalation Job
+const escalationService = require('./services/escalationService');
+escalationService.startDailyJob();
 
 // Middleware
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
@@ -51,6 +76,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/issues', voteRoutes);
 app.use('/api/issues', commentRoutes);
+
+const notificationRoutes = require('./routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date().toISOString() }));

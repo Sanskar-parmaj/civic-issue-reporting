@@ -68,11 +68,11 @@ export default function ReportIssue() {
               <p className="text-amber-300/70 text-sm mt-1">
                 {dupeWarning.message}
                 {dupeWarning.existingIssueId && (
-                  <> — <a href={`/issues/${dupeWarning.existingIssueId}`} className="underline">View existing issue →</a></>
+                  <> — <a href={`/issues/${dupeWarning.existingIssueId}`} target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-200">View existing issue ↗</a></>
                 )}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Text similarity: {Math.round((dupeWarning.textScore || 0) * 100)}% | Nearby: {dupeWarning.nearbyCount} issue(s)
+                Text similarity: {Math.round((dupeWarning.textScore || 0) * 100)}% | Nearby: {dupeWarning.nearbyCount} issue(s) checked
               </p>
             </motion.div>
           )}

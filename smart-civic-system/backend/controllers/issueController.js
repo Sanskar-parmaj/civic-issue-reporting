@@ -4,6 +4,7 @@ const { QuadTree } = require('../algorithms/QuadTree');
 const PriorityQueue = require('../algorithms/PriorityQueue');
 const AVLTree = require('../algorithms/AVLTree');
 const HashMap = require('../algorithms/HashMap');
+const Queue = require('../algorithms/Queue');
 
 const severityValues = { low: 1, medium: 2, high: 3, critical: 4 };
 
@@ -14,22 +15,27 @@ const checkDuplicate = async (req, res) => {
     const issuesResult = await pool.query('SELECT issue_id, title, latitude, longitude FROM Issues');
     const issues = issuesResult.rows;
 
-    // Trie: text similarity check
-    const trie = new Trie();
-    trie.insert(title, null); // placeholder
-    const titleList = issues.map(i => ({ title: i.title, issueId: i.issue_id }));
-    const textSimilarity = trie.checkSimilarity(title, titleList);
-
-    // QuadTree: spatial similarity check (within 100m)
+    // 1. QuadTree: spatial check (within 100m)
     const qt = QuadTree.build(issues);
     const nearbyIssues = qt.queryRadius(parseFloat(latitude), parseFloat(longitude), 0.1);
+    
+    if (nearbyIssues.length === 0) {
+      return res.json({ isDuplicate: false });
+    }
 
-    if (textSimilarity.similar || nearbyIssues.length > 0) {
-      const dupeId = textSimilarity.issueId || (nearbyIssues[0]?.data?.issue_id);
+    const nearbyIssueDatas = nearbyIssues.map(p => p.data);
+
+    // 2. Trie: text similarity check ONLY AMONG NEARBY issues
+    const trie = new Trie();
+    trie.insert(title, null); // placeholder
+    const titleList = nearbyIssueDatas.map(i => ({ title: i.title, issueId: i.issue_id }));
+    const textSimilarity = trie.checkSimilarity(title, titleList);
+
+    if (textSimilarity.matchScore > 0) {
       return res.json({
         isDuplicate: true,
-        message: 'A similar issue already exists nearby.',
-        existingIssueId: dupeId,
+        message: 'A similar issue already exists nearby. You can view it below, or continue to submit your report if this is a different issue.',
+        existingIssueId: textSimilarity.issueId,
         textScore: textSimilarity.matchScore,
         nearbyCount: nearbyIssues.length
       });
@@ -63,7 +69,24 @@ const createIssue = async (req, res) => {
       'INSERT INTO IssueHistory (issue_id, status, updated_by) VALUES ($1, $2, $3)',
       [result.rows[0].issue_id, 'reported', created_by]
     );
-    res.status(201).json(result.rows[0]);
+
+    // Notify ALL users when a new issue is reported
+    const newIssue = result.rows[0];
+    const allUsersRes = await pool.query('SELECT user_id FROM Users WHERE user_id != $1', [created_by]);
+    const affectedUserIds = allUsersRes.rows.map(u => u.user_id);
+
+    if (affectedUserIds.length > 0) {
+      const queue = Queue.buildNotifications('new', newIssue, affectedUserIds);
+      while (!queue.isEmpty()) {
+        const notif = queue.dequeue();
+        await pool.query(
+          "INSERT INTO notifications (user_id, message, issue_id) VALUES ($1, $2, $3)",
+          [notif.userId, notif.message, notif.issueId]
+        );
+      }
+    }
+
+    res.status(201).json(newIssue);
   } catch (err) {
     console.error('Create issue error:', err);
     res.status(500).json({ error: 'Server error creating issue' });
@@ -138,11 +161,42 @@ const updateIssueStatus = async (req, res) => {
     }
     const result = await pool.query(query, params);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Issue not found' });
+    
+    const updatedIssue = result.rows[0];
+
     await pool.query(
       'INSERT INTO IssueHistory (issue_id, status, updated_by) VALUES ($1, $2, $3)',
       [id, status, req.user.user_id]
     );
-    res.json(result.rows[0]);
+
+    // Notification Logic
+    if (status === 'resolved') {
+      // Notify ALL users
+      const allUsersRes = await pool.query('SELECT user_id FROM Users WHERE user_id != $1', [req.user.user_id]);
+      const affectedUserIds = allUsersRes.rows.map(u => u.user_id);
+      if (affectedUserIds.length > 0) {
+        const queue = Queue.buildNotifications('resolved', updatedIssue, affectedUserIds);
+        while (!queue.isEmpty()) {
+          const notif = queue.dequeue();
+          await pool.query(
+            "INSERT INTO notifications (user_id, message, issue_id) VALUES ($1, $2, $3)",
+            [notif.userId, notif.message, notif.issueId]
+          );
+        }
+      }
+    } else if (updatedIssue.created_by && updatedIssue.created_by !== req.user.user_id) {
+      // Notify only reporter for other updates
+      const queue = Queue.buildNotifications('updated', updatedIssue, [updatedIssue.created_by]);
+      while (!queue.isEmpty()) {
+        const notif = queue.dequeue();
+        await pool.query(
+          "INSERT INTO notifications (user_id, message, issue_id) VALUES ($1, $2, $3)",
+          [notif.userId, notif.message, notif.issueId]
+        );
+      }
+    }
+
+    res.json(updatedIssue);
   } catch (err) {
     console.error('Update issue error:', err);
     res.status(500).json({ error: 'Server error updating issue' });

@@ -68,10 +68,10 @@ class Queue {
   }
 
   static _message(type, title) {
-    if (type === 'resolved') return `Issue "${title}" has been resolved.`;
-    if (type === 'updated') return `Issue "${title}" has been updated.`;
-    if (type === 'nearby') return `A new issue has been reported near you: "${title}".`;
-    return `Update on issue "${title}".`;
+    if (type === 'resolved') return `Resolved: ${title}`;
+    if (type === 'updated') return `Updated: ${title}`;
+    if (type === 'new') return `New Issue: ${title}`;
+    return title;
   }
 }
 

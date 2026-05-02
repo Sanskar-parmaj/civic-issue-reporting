@@ -2,6 +2,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, logout, isAdmin } = useAuth();
@@ -59,11 +60,16 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <>
-                <span className="text-sm text-slate-400">
-                  👤 {user.name}
-                  {isAdmin() && <span className="ml-1 text-xs px-2 py-0.5 rounded-full bg-violet-600/30 text-violet-300">Admin</span>}
-                </span>
-                <button onClick={handleLogout} className="btn-secondary text-sm py-2 px-4">Logout</button>
+                <NotificationBell />
+                <span className="text-slate-300 mr-2">Welcome, {user.name}</span>
+                {user.role === 'admin' ? (
+                  <Link to="/admin" className="btn-secondary text-sm px-4 py-2">Admin Dashboard</Link>
+                ) : (
+                  <Link to="/dashboard" className="btn-secondary text-sm px-4 py-2">My Dashboard</Link>
+                )}
+                <button onClick={handleLogout} className="px-4 py-2 text-sm font-medium text-red-400 hover:text-red-300 transition-colors">
+                  Logout
+                </button>
               </>
             ) : (
               <>

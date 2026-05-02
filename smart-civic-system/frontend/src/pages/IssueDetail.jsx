@@ -75,6 +75,13 @@ export default function IssueDetail() {
 
   const priority = ({ low: 1, medium: 2, high: 3, critical: 4 }[issue.severity] || 0) + (issue.votes || 0);
 
+  const expectedDays = { low: 35, medium: 21, high: 14, critical: 7 }[issue.severity] || 35;
+  const daysPassed = Math.ceil(Math.abs(new Date() - new Date(issue.created_at)) / (1000 * 60 * 60 * 24));
+  const remainingDays = Math.max(0, expectedDays - daysPassed);
+  const createdDateObj = new Date(issue.created_at);
+  const deadlineDate = new Date(createdDateObj.setDate(createdDateObj.getDate() + expectedDays));
+  const deadlineDateString = deadlineDate.toLocaleDateString();
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <Link to="/issues" className="text-violet-400 hover:text-violet-300 text-sm mb-6 inline-block">← Back to Issues</Link>
@@ -92,7 +99,31 @@ export default function IssueDetail() {
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium badge-${issue.severity}`}>{sevLabels[issue.severity]}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium status-${issue.status}`}>{issue.status}</span>
               <span className="text-xs text-slate-500">{issue.category}</span>
+              {issue.escalated && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-red-600/30 text-red-400 border border-red-500/30">
+                  ⚠ Escalated
+                </span>
+              )}
             </div>
+
+            {issue.escalated ? (
+              <div className="mb-6 p-4 rounded-xl border border-red-500/30 bg-red-500/10">
+                <p className="text-red-400 font-semibold mb-1">⚠ This issue was not resolved within the expected time</p>
+                <div className="text-sm text-red-300/80 flex gap-4">
+                  <span>Expected Resolution Time: {expectedDays} days</span>
+                  <span>Days Passed: {daysPassed} days</span>
+                </div>
+              </div>
+            ) : issue.status !== 'resolved' && (
+              <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10">
+                <p className="text-amber-400 font-semibold mb-1">⏳ Escalation Deadline Approaching</p>
+                <div className="text-sm text-amber-300/80">
+                  <p>Remaining days for escalation: <strong>{remainingDays} days</strong></p>
+                  <p>Please resolve this issue before <strong>{deadlineDateString}</strong> to prevent auto-escalation.</p>
+                </div>
+              </div>
+            )}
+
             <h1 className="text-2xl font-bold text-white mb-2">{issue.title}</h1>
             {issue.description && <p className="text-slate-400 mb-4">{issue.description}</p>}
             <div className="flex items-center gap-4 text-sm text-slate-400">
