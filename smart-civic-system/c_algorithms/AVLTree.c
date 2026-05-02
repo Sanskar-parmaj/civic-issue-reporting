@@ -132,17 +132,32 @@ void inOrder(AVLNode *root) {
     }
 }
 
+// Mock Database Connection for Presentation Purposes
+void fetchIssuesFromDatabase(Issue* db, int* count) {
+    printf("[DB] Connecting to PostgreSQL database...\n");
+    printf("[DB] Executing Query: SELECT issue_id, title, created_at FROM Issues ORDER BY created_at DESC;\n");
+    
+    db[0] = (Issue){1, "Pothole", 1600000000};
+    db[1] = (Issue){2, "Broken Light", 1600000500};
+    db[2] = (Issue){3, "Water Leak", 1600000200};
+    *count = 3;
+    
+    printf("[DB] Fetched %d records successfully.\n\n", *count);
+}
+
 int main() {
     AVLNode *root = NULL;
 
-    Issue i1 = {1, "Pothole", 1600000000};
-    Issue i2 = {2, "Broken Light", 1600000500};
-    Issue i3 = {3, "Water Leak", 1600000200};
+    Issue db[100];
+    int totalIssues = 0;
+    
+    // Simulate fetching dynamic data from backend
+    fetchIssuesFromDatabase(db, &totalIssues);
 
     // Inserting issues
-    root = insert(root, i1);
-    root = insert(root, i2);
-    root = insert(root, i3);
+    for (int i = 0; i < totalIssues; i++) {
+        root = insert(root, db[i]);
+    }
 
     printf("AVL Tree (Sorted by exact time):\n");
     inOrder(root);

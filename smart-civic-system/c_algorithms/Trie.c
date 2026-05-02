@@ -2,123 +2,208 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
-#define ALPHABET_SIZE 26
+#define ALPHABET_SIZE 37 // a-z (26) + 0-9 (10) + '_' (1)
 
-// Trie Node for fast text/dictionary mapping
 typedef struct TrieNode {
     struct TrieNode *children[ALPHABET_SIZE];
-    int isEndOfWord;
-    int wordCount; // For frequency tracking
+    bool isEnd;
+    int issueId; // issue_id at the end node
 } TrieNode;
 
-// Create a new Trie node
-TrieNode *getNode(void) {
-    TrieNode *pNode = NULL;
-    pNode = (TrieNode *)malloc(sizeof(TrieNode));
-
-    if (pNode) {
-        int i;
-        pNode->isEndOfWord = 0;
-        pNode->wordCount = 0;
-        for (i = 0; i < ALPHABET_SIZE; i++)
-            pNode->children[i] = NULL;
+TrieNode* newTrieNode() {
+    TrieNode* node = (TrieNode*)malloc(sizeof(TrieNode));
+    node->isEnd = false;
+    node->issueId = -1;
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        node->children[i] = NULL;
     }
-    return pNode;
+    return node;
 }
 
-// Helper to get array zero-indexed mapping
-int getIndex(char c) {
-    if (isalpha(c)) {
-        return tolower(c) - 'a';
-    }
-    return -1; // ignore non-alphabet
+int getCharIndex(char c) {
+    if (c >= 'a' && c <= 'z') return c - 'a';
+    if (c >= '0' && c <= '9') return 26 + (c - '0');
+    if (c == '_') return 36;
+    return -1;
 }
 
-// Insert a word into the Trie
-void insert(TrieNode *root, const char *key) {
-    int length = strlen(key);
-    int index;
-    TrieNode *pCrawl = root;
+// Simple dynamic array of strings to hold normalized words
+typedef struct {
+    char words[50][50];
+    int count;
+} WordList;
 
-    for (int level = 0; level < length; level++) {
-        index = getIndex(key[level]);
-        if (index == -1) continue; // skip spaces/punctuation
-        
-        if (!pCrawl->children[index]) {
-            pCrawl->children[index] = getNode();
-        }
-        pCrawl = pCrawl->children[index];
-    }
-
-    pCrawl->isEndOfWord = 1;
-    pCrawl->wordCount++;
-}
-
-// Search for a word in the Trie
-int search(TrieNode *root, const char *key) {
-    int length = strlen(key);
-    int index;
-    TrieNode *pCrawl = root;
-
-    for (int level = 0; level < length; level++) {
-        index = getIndex(key[level]);
-        if (index == -1) continue;
-        
-        if (!pCrawl->children[index])
-            return 0; // Not found
-
-        pCrawl = pCrawl->children[index];
-    }
-
-    // Return the frequency of the word found
-    return (pCrawl != NULL && pCrawl->isEndOfWord) ? pCrawl->wordCount : 0;
-}
-
-// Simple text duplication check logic
-void checkTextSimilarity(TrieNode* systemTrie, const char* newReport) {
-    // Break the new report into words and check if they exist in the DB
-    char buffer[256];
-    strcpy(buffer, newReport);
-    char* word = strtok(buffer, " ");
-    int matchedWords = 0;
-    int totalWords = 0;
-
-    while (word != NULL) {
-        totalWords++;
-        if (search(systemTrie, word) > 0) {
-            matchedWords++;
-        }
-        word = strtok(NULL, " ");
-    }
-
-    float matchPercentage = (totalWords > 0) ? ((float)matchedWords / totalWords) * 100 : 0;
+WordList normalize(const char* title) {
+    WordList list;
+    list.count = 0;
     
-    printf("Duplicate Analysis for: '%s'\n", newReport);
-    printf("- Matched existing dictionary words: %d/%d (%.1f%%)\n", 
-            matchedWords, totalWords, matchPercentage);
-            
-    if (matchPercentage > 50.0) {
-        printf("- WARNING: High probability of duplicate issue!\n\n");
-    } else {
-        printf("- Valid issue. No duplicates found.\n\n");
+    char buffer[256];
+    int bufIdx = 0;
+    for (int i = 0; title[i] != '\0' && bufIdx < 255; i++) {
+        char c = tolower(title[i]);
+        if (isalnum(c) || isspace(c)) {
+            buffer[bufIdx++] = c;
+        }
     }
+    buffer[bufIdx] = '\0';
+    
+    char* token = strtok(buffer, " ");
+    while (token != NULL && list.count < 50) {
+        strcpy(list.words[list.count++], token);
+        token = strtok(NULL, " ");
+    }
+    return list;
+}
+
+void insert(TrieNode* root, const char* title, int issueId) {
+    WordList words = normalize(title);
+    TrieNode* node = root;
+    
+    for (int i = 0; i < words.count; i++) {
+        char* word = words.words[i];
+        for (int j = 0; word[j] != '\0'; j++) {
+            int idx = getCharIndex(word[j]);
+            if (idx == -1) continue;
+            if (!node->children[idx]) {
+                node->children[idx] = newTrieNode();
+            }
+            node = node->children[idx];
+        }
+        
+        // Add word separator '_'
+        int sepIdx = getCharIndex('_');
+        if (!node->children[sepIdx]) {
+            node->children[sepIdx] = newTrieNode();
+        }
+        node = node->children[sepIdx];
+    }
+    
+    node->isEnd = true;
+    node->issueId = issueId;
+}
+
+// Search for exact normalized title match
+int search(TrieNode* root, const char* title) {
+    WordList words = normalize(title);
+    TrieNode* node = root;
+    
+    for (int i = 0; i < words.count; i++) {
+        char* word = words.words[i];
+        for (int j = 0; word[j] != '\0'; j++) {
+            int idx = getCharIndex(word[j]);
+            if (idx == -1) continue;
+            if (!node->children[idx]) return -1;
+            node = node->children[idx];
+        }
+        
+        int sepIdx = getCharIndex('_');
+        if (!node->children[sepIdx]) return -1;
+        node = node->children[sepIdx];
+    }
+    
+    return node->isEnd ? node->issueId : -1;
+}
+
+// Check Similarity using Jaccard index
+typedef struct {
+    int issue_id;
+    char title[256];
+} IssueDict;
+
+void checkSimilarity(const char* inputTitle, IssueDict* existingIssues, int totalIssues) {
+    WordList inputWordsList = normalize(inputTitle);
+    
+    // Convert input list to distinct Set
+    char inputSet[50][50];
+    int inputSetSize = 0;
+    for (int i = 0; i < inputWordsList.count; i++) {
+        bool exists = false;
+        for (int j = 0; j < inputSetSize; j++) {
+            if (strcmp(inputSet[j], inputWordsList.words[i]) == 0) { exists = true; break; }
+        }
+        if (!exists) strcpy(inputSet[inputSetSize++], inputWordsList.words[i]);
+    }
+    
+    float bestScore = 0.0;
+    int bestIssueId = -1;
+    
+    for (int k = 0; k < totalIssues; k++) {
+        WordList existWordsList = normalize(existingIssues[k].title);
+        
+        char existSet[50][50];
+        int existSetSize = 0;
+        for (int i = 0; i < existWordsList.count; i++) {
+            bool exists = false;
+            for (int j = 0; j < existSetSize; j++) {
+                if (strcmp(existSet[j], existWordsList.words[i]) == 0) { exists = true; break; }
+            }
+            if (!exists) strcpy(existSet[existSetSize++], existWordsList.words[i]);
+        }
+        
+        int intersectionCount = 0;
+        for (int i = 0; i < inputSetSize; i++) {
+            for (int j = 0; j < existSetSize; j++) {
+                if (strcmp(inputSet[i], existSet[j]) == 0) {
+                    intersectionCount++;
+                    break;
+                }
+            }
+        }
+        
+        int unionCount = inputSetSize + existSetSize - intersectionCount;
+        float score = unionCount == 0 ? 0 : (float)intersectionCount / unionCount;
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestIssueId = existingIssues[k].issue_id;
+        }
+    }
+    
+    bool similar = bestScore >= 0.6;
+    printf("Similarity Check for: '%s'\n", inputTitle);
+    printf("- Best Match Score: %.2f%%\n", bestScore * 100);
+    if (similar) {
+        printf("- Found high similarity with Issue #%d. Suggesting vote instead of new report.\n\n", bestIssueId);
+    } else {
+        printf("- No duplicates found (score < 60%%).\n\n");
+    }
+}
+
+// Mock Database Connection for Presentation Purposes
+void fetchIssuesFromDatabase(IssueDict* db, int* count) {
+    printf("[DB] Connecting to PostgreSQL database...\n");
+    printf("[DB] Executing Query: SELECT issue_id, title FROM Issues;\n");
+    
+    db[0].issue_id = 1; strcpy(db[0].title, "Broken streetlight on main");
+    db[1].issue_id = 2; strcpy(db[1].title, "Massive pothole near avenue");
+    db[2].issue_id = 3; strcpy(db[2].title, "Water pipe leak");
+    *count = 3;
+    
+    printf("[DB] Fetched %d records successfully.\n\n", *count);
 }
 
 int main() {
-    // Simulated system dictionary (previously reported issue tokens)
-    char existingIssues[][10] = {"pothole", "broken", "street", "light", "water", "pipe", "leak"};
+    TrieNode* root = newTrieNode();
     
-    TrieNode *root = getNode();
-    int i;
-    int n = sizeof(existingIssues)/sizeof(existingIssues[0]);
-
-    // Insert existing words to the Trie
-    for (i = 0; i < n; i++)
-        insert(root, existingIssues[i]);
-
-    checkTextSimilarity(root, "massive pothole on street");
-    checkTextSimilarity(root, "dangerous loose wire on sidewalk");
-
+    IssueDict db[100];
+    int totalIssues = 0;
+    
+    // Simulate fetching dynamic data from backend
+    fetchIssuesFromDatabase(db, &totalIssues);
+    
+    for (int i = 0; i < totalIssues; i++) {
+        insert(root, db[i].title, db[i].issue_id);
+    }
+    
+    // Testing Exact Search
+    int exactMatch = search(root, "broken streetlight on main");
+    printf("Exact match search for 'broken streetlight on main': Issue #%d\n\n", exactMatch);
+    
+    // Testing Similarity (Jaccard > 0.6)
+    checkSimilarity("Streetlight is broken on main", db, totalIssues);
+    checkSimilarity("Pothole on avenue", db, totalIssues); // Too few common words, low score
+    
     return 0;
 }

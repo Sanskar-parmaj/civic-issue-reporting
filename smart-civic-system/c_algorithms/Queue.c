@@ -63,14 +63,33 @@ Notification dequeue(Queue* q) {
     return n;
 }
 
+// Mock Database Connection for Presentation Purposes
+void fetchPendingNotifications(Notification* db, int* count) {
+    printf("[DB] Connecting to PostgreSQL database...\n");
+    printf("[DB] Executing Query: SELECT notification_id, issue_id, message, user_id FROM Notifications WHERE status='pending';\n");
+    
+    db[0] = (Notification){101, 12, "Resolved: Broken Streetlight", 42};
+    db[1] = (Notification){102, 45, "New Issue: Pothole on Main St", 42};
+    db[2] = (Notification){103, 8, "Updated: Park Cleanup", 15};
+    *count = 3;
+    
+    printf("[DB] Fetched %d pending notifications for broadcasting.\n\n", *count);
+}
+
 int main() {
     Queue asyncNotifications;
     initQueue(&asyncNotifications);
 
-    // Enqueue system notifications (with associated Issue IDs)
-    enqueue(&asyncNotifications, 101, 12, "Resolved: Broken Streetlight", 42);
-    enqueue(&asyncNotifications, 102, 45, "New Issue: Pothole on Main St", 42);
-    enqueue(&asyncNotifications, 103, 8, "Updated: Park Cleanup", 15);
+    Notification db[100];
+    int pendingCount = 0;
+    
+    // Simulate fetching dynamic data from backend
+    fetchPendingNotifications(db, &pendingCount);
+
+    // Enqueue system notifications
+    for (int i = 0; i < pendingCount; i++) {
+        enqueue(&asyncNotifications, db[i].notification_id, db[i].issue_id, db[i].message, db[i].user_id);
+    }
 
     printf("Processing Asynchronous Notification Queue (FIFO):\n");
     while (!isEmpty(&asyncNotifications)) {

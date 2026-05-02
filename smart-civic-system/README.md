@@ -76,3 +76,5 @@ smart-civic-system/
 
 ## 📄 License
 This project is licensed under the ISC License.
+
+"Node.js natively processes data from our PostgreSQL database as JSON objects. If we used our C algorithms in the backend, Node.js would have to convert every single database row into a massive text string, send it to the C program, wait for C to process it, and then convert it back. The time it takes to transfer data between JavaScript memory and C memory creates a massive I/O bottleneck. The performance we would gain from C's fast computation is completely wiped out by the overhead of data translation. Running the algorithms natively in JS is actually faster for standard web traffic."

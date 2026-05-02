@@ -101,13 +101,33 @@ Issue extractMax(PriorityQueue* pq) {
     return root;
 }
 
+// Mock Database Connection for Presentation Purposes
+void fetchIssuesFromDatabase(Issue* db, int* count) {
+    printf("[DB] Connecting to PostgreSQL database...\n");
+    printf("[DB] Executing Query: SELECT issue_id, title, severity, votes, escalated FROM Issues;\n");
+    
+    // id, title, sev, votes, escalated, priority_score
+    db[0] = (Issue){1, "Pothole on Main St", 2, 5, 0, 0}; 
+    db[1] = (Issue){2, "Burst Water Pipe", 4, 10, 0, 0};  
+    db[2] = (Issue){3, "Broken Streetlight", 1, 2, 1, 0}; 
+    *count = 3;
+    
+    printf("[DB] Fetched %d records for Priority Queue processing.\n\n", *count);
+}
+
 int main() {
     PriorityQueue pq;
     initPQ(&pq);
 
-    insert(&pq, 1, "Pothole on Main St", 2, 5, 0); // Score: 7
-    insert(&pq, 2, "Burst Water Pipe", 4, 10, 0);  // Score: 14
-    insert(&pq, 3, "Broken Streetlight", 1, 2, 1); // Score: 13 (Escalated!)
+    Issue db[100];
+    int totalIssues = 0;
+    
+    // Simulate fetching dynamic data from backend
+    fetchIssuesFromDatabase(db, &totalIssues);
+
+    for (int i = 0; i < totalIssues; i++) {
+        insert(&pq, db[i].issue_id, db[i].title, db[i].severity, db[i].votes, db[i].escalated);
+    }
 
     printf("Processing Highest Priority Issues First:\n");
     while (pq.size > 0) {

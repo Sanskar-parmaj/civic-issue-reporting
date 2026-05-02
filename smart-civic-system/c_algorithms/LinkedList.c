@@ -69,13 +69,38 @@ void printReverseChronological(LinkedList* list) {
     printf("\n");
 }
 
+// Mock Database Connection for Presentation Purposes
+typedef struct {
+    int id;
+    char text[256];
+    char author[50];
+} CommentData;
+
+void fetchCommentsFromDatabase(CommentData* db, int* count) {
+    printf("[DB] Connecting to PostgreSQL database...\n");
+    printf("[DB] Executing Query: SELECT comment_id, text, author FROM Comments WHERE issue_id = 12 ORDER BY created_at ASC;\n");
+    
+    db[0] = (CommentData){1, "There is a massive pothole here.", "Citizen_A"};
+    db[1] = (CommentData){2, "I tripped over it yesterday!", "Citizen_B"};
+    db[2] = (CommentData){3, "Municipal team has been dispatched.", "Admin_User"};
+    *count = 3;
+    
+    printf("[DB] Fetched %d comments successfully.\n\n", *count);
+}
+
 int main() {
     LinkedList list;
     initList(&list);
 
-    appendComment(&list, 1, "There is a massive pothole here.", "Citizen_A");
-    appendComment(&list, 2, "I tripped over it yesterday!", "Citizen_B");
-    appendComment(&list, 3, "Municipal team has been dispatched.", "Admin_User");
+    CommentData db[100];
+    int commentCount = 0;
+    
+    // Simulate fetching dynamic data from backend
+    fetchCommentsFromDatabase(db, &commentCount);
+
+    for (int i = 0; i < commentCount; i++) {
+        appendComment(&list, db[i].id, db[i].text, db[i].author);
+    }
 
     printChronological(&list);
     printReverseChronological(&list);

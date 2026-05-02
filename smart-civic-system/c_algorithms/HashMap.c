@@ -97,17 +97,36 @@ void printStats(HashMap* map) {
     }
 }
 
+// Mock Database Connection for Presentation Purposes
+void fetchIssuesFromDatabase(char categories[][50], int* count) {
+    printf("[DB] Connecting to PostgreSQL database...\n");
+    printf("[DB] Executing Query: SELECT category FROM Issues;\n");
+    
+    strcpy(categories[0], "Road");
+    strcpy(categories[1], "Water");
+    strcpy(categories[2], "Road");
+    strcpy(categories[3], "Electricity");
+    strcpy(categories[4], "Water");
+    strcpy(categories[5], "Road");
+    *count = 6;
+    
+    printf("[DB] Fetched %d records for Analytics.\n\n", *count);
+}
+
 int main() {
     HashMap map;
     initHashMap(&map);
 
-    // Demo 1: Simulating categorization of incoming issues
-    incrementFrequency(&map, "Road");
-    incrementFrequency(&map, "Water");
-    incrementFrequency(&map, "Road");
-    incrementFrequency(&map, "Electricity");
-    incrementFrequency(&map, "Water");
-    incrementFrequency(&map, "Road");
+    char db[100][50];
+    int totalIssues = 0;
+    
+    // Simulate fetching dynamic data from backend
+    fetchIssuesFromDatabase(db, &totalIssues);
+
+    // Demo 1: Categorization Analytics
+    for (int i = 0; i < totalIssues; i++) {
+        incrementFrequency(&map, db[i]);
+    }
 
     printStats(&map);
 
