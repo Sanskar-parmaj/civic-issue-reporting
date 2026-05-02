@@ -7,6 +7,7 @@
 // Define a Notification
 typedef struct {
     int notification_id;
+    int issue_id;
     char message[100];
     int user_id;
 } Notification;
@@ -35,7 +36,7 @@ int isEmpty(Queue* q) {
 }
 
 // Enqueue a new notification
-void enqueue(Queue* q, int id, const char* msg, int uid) {
+void enqueue(Queue* q, int id, int issue_id, const char* msg, int uid) {
     if (isFull(q)) {
         printf("Queue Full: Cannot enqueue notification.\n");
         return;
@@ -43,6 +44,7 @@ void enqueue(Queue* q, int id, const char* msg, int uid) {
     // Circular increment of rear
     q->rear = (q->rear + 1) % MAX_QUEUE_SIZE;
     q->items[q->rear].notification_id = id;
+    q->items[q->rear].issue_id = issue_id;
     q->items[q->rear].user_id = uid;
     strcpy(q->items[q->rear].message, msg);
     q->current_size++;
@@ -51,7 +53,7 @@ void enqueue(Queue* q, int id, const char* msg, int uid) {
 // Dequeue and process a notification
 Notification dequeue(Queue* q) {
     if (isEmpty(q)) {
-        Notification empty = {-1, "", -1};
+        Notification empty = {-1, -1, "", -1};
         return empty;
     }
     Notification n = q->items[q->front];
@@ -65,15 +67,15 @@ int main() {
     Queue asyncNotifications;
     initQueue(&asyncNotifications);
 
-    // Enqueue system notifications
-    enqueue(&asyncNotifications, 101, "Issue #12 has been Resolved.", 42);
-    enqueue(&asyncNotifications, 102, "New Comment on your reported issue.", 42);
-    enqueue(&asyncNotifications, 103, "Admin marked Issue #8 as In Progress", 15);
+    // Enqueue system notifications (with associated Issue IDs)
+    enqueue(&asyncNotifications, 101, 12, "Resolved: Broken Streetlight", 42);
+    enqueue(&asyncNotifications, 102, 45, "New Issue: Pothole on Main St", 42);
+    enqueue(&asyncNotifications, 103, 8, "Updated: Park Cleanup", 15);
 
     printf("Processing Asynchronous Notification Queue (FIFO):\n");
     while (!isEmpty(&asyncNotifications)) {
         Notification n = dequeue(&asyncNotifications);
-        printf("- Sent to User %d: '%s'\n", n.user_id, n.message);
+        printf("- Sent to User %d [For Issue ID %d]: '%s'\n", n.user_id, n.issue_id, n.message);
     }
 
     return 0;

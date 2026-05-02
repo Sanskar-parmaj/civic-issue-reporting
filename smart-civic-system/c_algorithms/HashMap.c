@@ -32,6 +32,37 @@ unsigned int hash(const char* str) {
     return hash % TABLE_SIZE;
 }
 
+// Set a key-value pair in the hash map (used for SLA Tracking)
+void set(HashMap* map, const char* key, int value) {
+    unsigned int index = hash(key);
+    HashNode* current = map->buckets[index];
+    
+    while (current != NULL) {
+        if (strcmp(current->key, key) == 0) {
+            current->count = value;
+            return;
+        }
+        current = current->next;
+    }
+    
+    HashNode* newNode = (HashNode*)malloc(sizeof(HashNode));
+    strcpy(newNode->key, key);
+    newNode->count = value;
+    newNode->next = map->buckets[index];
+    map->buckets[index] = newNode;
+}
+
+// Get a value by key (returns -1 if not found)
+int get(HashMap* map, const char* key) {
+    unsigned int index = hash(key);
+    HashNode* current = map->buckets[index];
+    while (current != NULL) {
+        if (strcmp(current->key, key) == 0) return current->count;
+        current = current->next;
+    }
+    return -1;
+}
+
 // Update or add frequency to the hash map
 void incrementFrequency(HashMap* map, const char* category) {
     unsigned int index = hash(category);
@@ -70,7 +101,7 @@ int main() {
     HashMap map;
     initHashMap(&map);
 
-    // Simulating categorization of incoming issues
+    // Demo 1: Simulating categorization of incoming issues
     incrementFrequency(&map, "Road");
     incrementFrequency(&map, "Water");
     incrementFrequency(&map, "Road");
@@ -78,8 +109,22 @@ int main() {
     incrementFrequency(&map, "Water");
     incrementFrequency(&map, "Road");
 
-    // Print frequencies
     printStats(&map);
+
+    // Demo 2: Simulating SLA Escalation Mapping
+    HashMap slaMap;
+    initHashMap(&slaMap);
+    
+    set(&slaMap, "critical", 7);
+    set(&slaMap, "high", 14);
+    set(&slaMap, "medium", 21);
+    set(&slaMap, "low", 35);
+
+    printf("\nSLA Deadlines (Days):\n");
+    printf("- Critical Severity: %d Days\n", get(&slaMap, "critical"));
+    printf("- High Severity: %d Days\n", get(&slaMap, "high"));
+    printf("- Medium Severity: %d Days\n", get(&slaMap, "medium"));
+    printf("- Low Severity: %d Days\n", get(&slaMap, "low"));
 
     return 0;
 }
